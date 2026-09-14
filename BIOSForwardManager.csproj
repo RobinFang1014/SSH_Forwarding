@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>BIOSForwardManager</RootNamespace>
+    <AssemblyName>BIOSForwardManager</AssemblyName>
+    <Version>1.0.0</Version>
+    <Product>BIOS Forward Manager</Product>
+    <Description>SSH 端口轉發管理 GUI（WPF TreeListView 版，依 Remote IP 分組）</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 將彩色 PNG 圖示編譯為嵌入資源（pack://application:,,,/Assets/xxx.png） -->
+    <Resource Include="Assets\**\*.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 移除 WinForms 的 global using，避免與 WPF 型別衝突（Brush/Point/Application/MouseEventArgs 等）。
+         TrayHelper 使用明確 using/alias，不受影響。 -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SSH.NET" Version="2026.0.0" />
+  </ItemGroup>
+
+</Project>
