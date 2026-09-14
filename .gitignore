@@ -1,0 +1,62 @@
+# Build results
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.so
+*.dylib
+
+# Visual Studio / Visual Studio Code
+.vs/
+.vscode/
+*.user
+*.userprefs
+*.suo
+*.sln.docstates
+*.sln.iml
+.idea/
+
+# Rider
+.idea/
+*.sln.iml
+out/
+
+# User-specific files
+*.rsuser
+.classpath
+.project
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE Rider
+.idea_modules/
+*.iml
+*.iws
+*.ipr
+
+# Temporary files
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# NuGet
+.nuget/
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+
+# Entity Framework
+*.edmx.diagram
+
+# Unit test / coverage reports
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.trx
+.coverage
