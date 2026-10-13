@@ -48,15 +48,21 @@ public class ConfigService
 
             if (inSsh)
             {
-                if (TryMatch(line, @"^User\s*=\s*(.+)$", out var m)) ssh.User = m.Groups[1].Value.Trim();
-                else if (TryMatch(line, @"^Host\s*=\s*(.+)$", out m)) ssh.Host = m.Groups[1].Value.Trim();
-                else if (TryMatch(line, @"^Port\s*=\s*(\d+)$", out m)) ssh.Port = m.Groups[1].Value.Trim();
-                else if (TryMatch(line, @"^Distro\s*=\s*(.+)$", out m)) ssh.Distro = m.Groups[1].Value.Trim();
-                else if (TryMatch(line, @"^Socket\s*=\s*(.+)$", out m)) ssh.Socket = m.Groups[1].Value.Trim();
-                else if (TryMatch(line, @"^PrivateKeyPath\s*=\s*(.+)$", out m)) ssh.PrivateKeyPath = m.Groups[1].Value.Trim();
-                else if (TryMatch(line, @"^Passphrase\s*=\s*(.*)$", out m)) ssh.Passphrase = m.Groups[1].Value.Trim();
-                else if (line.StartsWith("[")) inSsh = false;
-                continue;
+                if (TryMatch(line, @"^User\s*=\s*(.+)$", out var m)) { ssh.User = m.Groups[1].Value.Trim(); continue; }
+                if (TryMatch(line, @"^Host\s*=\s*(.+)$", out m)) { ssh.Host = m.Groups[1].Value.Trim(); continue; }
+                if (TryMatch(line, @"^Port\s*=\s*(\d+)$", out m)) { ssh.Port = m.Groups[1].Value.Trim(); continue; }
+                if (TryMatch(line, @"^Distro\s*=\s*(.+)$", out m)) { ssh.Distro = m.Groups[1].Value.Trim(); continue; }
+                if (TryMatch(line, @"^Socket\s*=\s*(.+)$", out m)) { ssh.Socket = m.Groups[1].Value.Trim(); continue; }
+                if (TryMatch(line, @"^PrivateKeyPath\s*=\s*(.+)$", out m)) { ssh.PrivateKeyPath = m.Groups[1].Value.Trim(); continue; }
+                if (TryMatch(line, @"^Passphrase\s*=\s*(.*)$", out m)) { ssh.Passphrase = m.Groups[1].Value.Trim(); continue; }
+                if (line.StartsWith("["))
+                {
+                    inSsh = false; // 進入新 section — 這行本身是 forward 條目，fall through 到下方解析
+                }
+                else
+                {
+                    continue; // SSHConfig 段內的未知列
+                }
             }
 
             // [Type] Name|LocalPort:RemoteIP:RemotePort[|AUTO]
