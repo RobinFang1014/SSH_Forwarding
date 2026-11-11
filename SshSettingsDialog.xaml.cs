@@ -7,12 +7,10 @@ namespace BIOSForwardManager;
 public partial class SshSettingsDialog : Window
 {
     public SshConfig? Result { get; private set; }
-    private readonly SshConfig _current;
 
     public SshSettingsDialog(SshConfig current)
     {
         InitializeComponent();
-        _current = current;
         UserBox.Text = current.User;
         HostBox.Text = current.Host;
         PortBox.Text = current.Port;
@@ -34,11 +32,7 @@ public partial class SshSettingsDialog : Window
         {
             User = UserBox.Text.Trim(),
             Host = HostBox.Text.Trim(),
-            Port = PortBox.Text.Trim(),
-            PrivateKeyPath = _current.PrivateKeyPath,
-            Passphrase = _current.Passphrase,
-            Distro = _current.Distro,
-            Socket = _current.Socket
+            Port = PortBox.Text.Trim()
         };
         DialogResult = true;
     }

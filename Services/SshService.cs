@@ -96,7 +96,7 @@ public class SshService : IDisposable
         }
     }
 
-    public (bool Success, string Output) EnableForward(SshConfig ssh, ForwardConfig cfg)
+    public (bool Success, string Output) EnableForward(ForwardConfig cfg)
     {
         if (!IsConnected || _client == null) return (false, "Not connected");
 
@@ -124,7 +124,7 @@ public class SshService : IDisposable
         }
     }
 
-    public (bool Success, string Output) DisableForward(SshConfig ssh, ForwardConfig cfg)
+    public (bool Success, string Output) DisableForward(ForwardConfig cfg)
     {
         if (!IsConnected || _client == null) return (false, "Not connected");
 

@@ -1,3 +1,7 @@
+# App config (contains account / host info)
+config.txt
+terminal_settings.json
+
 # Build results
 bin/
 obj/

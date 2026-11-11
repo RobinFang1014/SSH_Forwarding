@@ -1,26 +1,27 @@
 # SSH Forward Manager
 
-> 🤖 AI生成的SSH端口轉發管理GUI應用
+> 🤖 AI 輔助開發的 SSH 端口轉發管理 GUI 應用
 
-一個基於 WPF 的 Windows 桌面應用，用於管理和監控 SSH 端口轉發連接。提供友好的圖形界面，支持快速配置、啟動/停止端口轉發，以及實時連接狀態監控。
+一個基於 WPF 的 Windows 桌面應用，透過 Jump Server 管理 SSH 本地端口轉發（Local Port Forwarding）。提供圖形介面，可快速設定、啟動/停止轉發，並即時顯示連線狀態。
 
 ## ✨ 功能特性
 
-- 🔧 **直觀的配置界面** - 輕鬆添加、編輯和管理 SSH 轉發規則
-- 🚀 **快速連接** - 一鍵啟動/停止 SSH 端口轉發
-- 📊 **實時監控** - 查看當前活動的轉發連接狀態
-- 🔐 **安全認證** - 支持密鑰和密碼認證方式
-- 💾 **配置持久化** - 自動保存轉發配置，下次啟動自動恢復
-- 🎨 **深色主題** - 適配現代 Windows 11+ UI 風格
+- 🔐 **密碼 + 二階段認證（2FA）** - 以 keyboard-interactive 方式登入 Jump Server
+- 🔧 **轉發規則管理** - 新增、編輯、移除轉發規則，依 Remote IP 自動分組
+- 🚀 **一鍵啟動** - 單筆 Enable/Disable，或以 Start Auto 啟動所有標記為 AUTO 的規則
+- 📊 **狀態監控** - 每 5 秒刷新 ACTIVE/INACTIVE 狀態與連線時間；斷線即時通知
+- 🖥 **內建 Terminal** - 直接在 Jump Server 上開啟互動式 Shell（可自訂字型、顏色）
+- 💾 **設定持久化** - 規則與 SSH 設定存於 `config.txt`，下次啟動自動載入
+- 📌 **系統匣** - 最小化時縮到系統匣，圖示顯示連線狀態
 
 ## 🛠️ 技術棧
 
 | 項目 | 版本 | 說明 |
 |------|------|------|
-| **.NET** | 10.0.401 | 最新LTS版本 |
+| **.NET SDK** | 10.0.401 | 由 `global.json` 指定 |
 | **框架** | .NET 10.0 Windows Desktop | WPF 應用開發 |
-| **UI** | WPF + Windows Forms | XAML 界面設計 |
-| **SSH Library** | SSH.NET 2026.0.0 | SSH 連接和端口轉發 |
+| **UI** | WPF + Windows Forms | WPF 介面；Windows Forms 僅用於系統匣圖示 |
+| **SSH Library** | SSH.NET 2026.0.0 | SSH 連線與端口轉發（不需 ssh.exe） |
 | **IDE** | Visual Studio 2022+ | C# 開發環境 |
 
 ### 專案配置
@@ -37,20 +38,19 @@
 
 ## 📦 依賴套件
 
-- **SSH.NET** (2026.0.0) - 提供 SSH 協議支持和端口轉發功能
+- **SSH.NET** (2026.0.0) - 提供 SSH 協定支援與端口轉發功能
 
 ## 🚀 快速開始
 
 ### 系統要求
 
-- Windows 10 21H2 或更高版本
-- .NET 10.0 Runtime
-- 最少 200MB 磁盤空間
+- Windows 10 / 11
+- .NET 10.0 Desktop Runtime（開發需 .NET 10 SDK）
 
-### 安裝 .NET Runtime
+### 檢查 .NET 版本
 
 ```powershell
-# 檢查已安裝的 .NET 版本
+dotnet --list-sdks
 dotnet --list-runtimes
 ```
 
@@ -80,33 +80,65 @@ dotnet run
 ## 📁 項目結構
 
 ```
-├── App.xaml / App.xaml.cs          # 應用程序入口
-├── MainWindow.xaml / .cs           # 主窗口
-├── Models/                         # 數據模型
-│   ├── ForwardConfig.cs            # 轉發配置
-│   ├── ForwardItem.cs              # 轉發項目
-│   └── TerminalSettings.cs         # 終端設置
-├── ViewModels/                     # 視圖模型（MVVM）
-├── Services/                       # 業務服務
-│   ├── SshService.cs               # SSH 連接管理
-│   ├── ConfigService.cs            # 配置管理
-│   └── TrayHelper.cs               # 系統托盤
-├── Controls/                       # 自定義控件
-│   └── TerminalControl.cs          # 終端控件
-├── Converters/                     # XAML 值轉換器
-│── Dialogs/                        # 對話框
-│   ├── LoginDialog.xaml            # 登錄對話框
-│   ├── ConnectionDialog.xaml       # 連接配置對話框
-│   ├── SshSettingsDialog.xaml      # SSH 設置對話框
-│   └── TerminalSettingsDialog.xaml # 終端設置對話框
-├── Assets/                         # 資源文件（圖標、圖片等）
-└── generate_icons.ps1              # 圖標生成腳本
+├── App.xaml / App.xaml.cs                  # 應用程式入口
+├── MainWindow.xaml / .cs                   # 主視窗（工具列、轉發列表、狀態列）
+├── LoginDialog.xaml / .cs                  # 登入對話框（密碼 + 2FA）
+├── ConnectionDialog.xaml / .cs             # 新增/編輯轉發規則
+├── SshSettingsDialog.xaml / .cs            # Jump Server 設定（User/Host/Port）
+├── TerminalWindow.xaml / .cs               # SSH Terminal 視窗
+├── TerminalSettingsDialog.xaml / .cs       # Terminal 字型/顏色設定
+├── Models/
+│   ├── ForwardConfig.cs                    # SshConfig、ForwardConfig 設定模型
+│   ├── ForwardItem.cs                      # 列表顯示項目（IP 分組 / 單筆轉發）
+│   └── TerminalSettings.cs                 # Terminal 設定（存於 terminal_settings.json）
+├── ViewModels/
+│   ├── MainViewModel.cs                    # 主視窗邏輯（MVVM）
+│   ├── RelayCommand.cs
+│   └── ColumnWidths.cs
+├── Services/
+│   ├── SshService.cs                       # SSH 連線、轉發管理
+│   ├── ConfigService.cs                    # config.txt 讀寫
+│   └── TrayHelper.cs                       # 系統匣
+├── Controls/
+│   └── TerminalControl.cs                  # Terminal 繪製控制項
+├── Terminal/                               # VT/ANSI 解析與畫面緩衝
+│   ├── TerminalParser.cs
+│   ├── TerminalBuffer.cs
+│   └── TerminalCell.cs
+├── Converters/                             # XAML 值轉換器
+├── Assets/                                 # 圖示 PNG
+└── generate_icons.ps1                      # 圖示產生腳本
 ```
 
-## 🔧 配置文件
+## 🔧 設定檔
+
+### config.txt
+
+程式啟動時會從 exe 所在目錄**逐層往上**搜尋 `config.txt`（開發時可直接放在專案根目錄）；找不到時會在 exe 目錄建立。格式如下：
+
+```ini
+[SSHConfig]
+User=your_account
+Host=jump.example.com
+Port=22
+
+[http] UUT_Node|8080:192.168.1.1:80|AUTO
+[ssh] UUT_Shell|2222:192.168.1.1:22
+```
+
+轉發規則格式：`[類型] 名稱|本地Port:遠端IP:遠端Port[|AUTO]`
+
+- **類型**：自由填寫，`http` / `ssh` / `rdp` / `gdb` / `cscript` 會顯示對應圖示
+- **遠端 IP**：目前僅支援 IPv4 位址
+- **AUTO**：連線 Jump Server 後自動啟動此轉發
+- 本地端口只綁定 `127.0.0.1`
+
+> ⚠️ `config.txt` 含帳號與主機資訊，請勿提交到版本控制。
 
 ### global.json
-指定項目使用的 .NET SDK 版本：
+
+指定專案使用的 .NET SDK 版本：
+
 ```json
 {
   "sdk": {
@@ -116,33 +148,57 @@ dotnet run
 }
 ```
 
-## 📝 使用示例
+## 📝 使用說明
 
-### 添加新的 SSH 轉發配置
+### 1. 設定 Jump Server
 
-1. 打開應用程序
-2. 點擊「新增連接」
-3. 填入 SSH 服務器信息
-4. 配置本地轉發端口和遠程端口
-5. 保存配置
+點擊工具列「⚙ SSH 設定」，填入 User、Host、Port（預設 22），儲存。
 
-### 啟動端口轉發
+### 2. 連線 Jump Server
 
-1. 從列表中選擇已配置的轉發
-2. 點擊「連接」按鈕
-3. 應用程序會建立 SSH 連接並啟動端口轉發
+1. 點擊「Connect Master」
+2. 在登入視窗輸入**密碼**與 **2FA 驗證碼**（兩者皆必填）
+3. 連線成功後，狀態列顯示綠燈，並自動啟動所有 AUTO 規則
+
+### 3. 新增轉發規則
+
+點擊「Add」，填入類型、名稱、本地端口、遠端 IP、遠端端口，可勾選「Auto Start on Master Connect」。
+
+### 4. 啟動 / 停止轉發
+
+- 在列表中點擊該筆的「Enable / Disable」按鈕
+- 「Start Auto」：啟動所有 AUTO 規則
+- 「Clear All」：停止所有已啟動的轉發
+
+啟動後即可透過 `127.0.0.1:本地端口` 存取遠端服務。
+
+### 5. 中斷連線
+
+點擊「Exit Master」會停止所有轉發並中斷 SSH 連線。
+
+## 🔐 認證方式
+
+僅支援 **密碼 + 2FA**（SSH keyboard-interactive）：
+
+- Server 提示文字含 `password` 或 `passphrase` 時，送出密碼
+- 其他提示一律送出 2FA 驗證碼
+
+不支援 SSH 金鑰登入。斷線後需重新輸入密碼與新的 2FA 驗證碼。
 
 ## 🐛 故障排除
 
-### 無法連接到 SSH 服務器
-- 確認服務器地址和端口是否正確
-- 檢查網絡連接
-- 驗證 SSH 認證信息（用戶名、密碼或密鑰）
+### 無法連線到 Jump Server
+- 確認 Host / Port / User 是否正確
+- 確認 2FA 驗證碼未過期（請在驗證碼剛更新時輸入）
+- 確認 Jump Server 允許 keyboard-interactive 認證
+- 錯誤訊息會顯示在下方狀態列
 
 ### 端口轉發失敗
-- 確認本地端口未被占用
-- 檢查遠程服務器端口是否可訪問
-- 查看應用日誌獲取詳細錯誤信息
+- 確認本地端口未被其他程式占用
+- 確認遠端 IP / Port 從 Jump Server 可連通（可用內建 Terminal 測試）
+
+### 連線突然中斷
+- 程式每 60 秒送出 keep-alive；若網路中斷或 Server 關閉連線，狀態列會顯示紅色錯誤訊息，需重新連線
 
 ## 🤝 貢獻
 
@@ -152,12 +208,8 @@ dotnet run
 
 MIT License - 詳見 [LICENSE](LICENSE) 文件
 
-## 📞 支持
-
-如有問題或建議，歡迎通過 GitHub Issues 反饋。
-
 ---
 
-**最後更新**: 2026年9月14日  
+**最後更新**: 2026年11月12日  
 **.NET 版本**: 10.0.401  
 **應用版本**: 1.0.0

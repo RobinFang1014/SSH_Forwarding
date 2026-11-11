@@ -295,7 +295,7 @@ public class MainViewModel : INotifyPropertyChanged
         foreach (var cfg in Configs.Where(c => c.Auto))
         {
             if (_ssh.IsPortInUse(cfg.LocalPort)) continue;
-            var (ok, _) = _ssh.EnableForward(Ssh, cfg);
+            var (ok, _) = _ssh.EnableForward(cfg);
             if (ok) count++;
         }
         RefreshStatus();
@@ -355,7 +355,7 @@ public class MainViewModel : INotifyPropertyChanged
         {
             if (_ssh.IsForwardActive(cfg.LocalPort))
             {
-                _ssh.DisableForward(Ssh, cfg);
+                _ssh.DisableForward(cfg);
                 count++;
             }
         }
@@ -382,8 +382,8 @@ public class MainViewModel : INotifyPropertyChanged
         }
 
         var (ok, output) = isEnabling
-            ? _ssh.EnableForward(Ssh, cfg)
-            : _ssh.DisableForward(Ssh, cfg);
+            ? _ssh.EnableForward(cfg)
+            : _ssh.DisableForward(cfg);
 
         if (ok)
             SetResult($"Result: {(isEnabling ? "Enabled" : "Disabled")} {cfg.Name}.", Brushes.Green);
