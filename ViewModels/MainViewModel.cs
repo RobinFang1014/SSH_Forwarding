@@ -95,6 +95,11 @@ public class MainViewModel : INotifyPropertyChanged
         (Ssh, Configs) = _config.Load();
         BuildTree();
 
+        // config.txt 若有重複的 Local Port（手動編輯時可能發生），啟動時提醒
+        var dupPorts = Configs.GroupBy(c => c.LocalPort).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (dupPorts.Count > 0)
+            SetResult($"Result: WARNING - Duplicate Local Port in config.txt: {string.Join(", ", dupPorts)}", Brushes.DarkOrange);
+
         ConnectMasterCommand = new RelayCommand(ConnectMaster);
         StartAutoCommand = new RelayCommand(StartAuto, () => IsConnected);
         AddConnectionCommand = new RelayCommand(AddConnection);
@@ -213,7 +218,7 @@ public class MainViewModel : INotifyPropertyChanged
             foreach (var child in group.Children)
             {
                 if (child.Config == null) continue;
-                bool active = _ssh.IsForwardActive(child.Config.LocalPort);
+                bool active = _ssh.IsForwardActive(child.Config);
                 if (child.IsActive != active)
                     child.IsActive = active;
             }
@@ -292,14 +297,22 @@ public class MainViewModel : INotifyPropertyChanged
     {
         if (!IsConnected) return;
         int count = 0;
+        var skipped = new List<int>();
+        var failed = new List<string>();
         foreach (var cfg in Configs.Where(c => c.Auto))
         {
-            if (_ssh.IsPortInUse(cfg.LocalPort)) continue;
+            if (_ssh.IsForwardActive(cfg)) continue;
+            // port 已被其他程式（或另一筆同 L-Port 的設定）佔用 → 跳過，但要讓使用者知道
+            if (_ssh.IsPortInUse(cfg.LocalPort)) { skipped.Add(cfg.LocalPort); continue; }
             var (ok, _) = _ssh.EnableForward(cfg);
-            if (ok) count++;
+            if (ok) count++; else failed.Add(cfg.Name);
         }
         RefreshStatus();
-        SetResult($"Result: Auto-started {count} connections.", Brushes.Green);
+
+        var msg = $"Result: Auto-started {count} connections.";
+        if (skipped.Count > 0) msg += $" Skipped (local port in use): {string.Join(", ", skipped)}.";
+        if (failed.Count > 0) msg += $" Failed: {string.Join(", ", failed)}.";
+        SetResult(msg, skipped.Count + failed.Count > 0 ? Brushes.DarkOrange : Brushes.Green);
     }
 
     private void AddConnection()
@@ -318,7 +331,8 @@ public class MainViewModel : INotifyPropertyChanged
     {
         if (SelectedItem is not { IsConnection: true } item || item.Config == null) return;
         var cfg = item.Config;
-        if (_ssh.IsPortInUse(cfg.LocalPort))
+        // 只擋「本筆」正在啟用中；port 被其他程式佔用時仍可編輯（正好需要改 port）
+        if (_ssh.IsForwardActive(cfg))
         {
             MessageBox.Show("Cannot edit an active connection. Please disable it first.", "Edit Blocked");
             return;
@@ -353,7 +367,7 @@ public class MainViewModel : INotifyPropertyChanged
         int count = 0;
         foreach (var cfg in Configs)
         {
-            if (_ssh.IsForwardActive(cfg.LocalPort))
+            if (_ssh.IsForwardActive(cfg))
             {
                 _ssh.DisableForward(cfg);
                 count++;
@@ -377,7 +391,12 @@ public class MainViewModel : INotifyPropertyChanged
         // 防衝突：啟用前確認該 Port 沒有被佔用
         if (isEnabling && _ssh.IsPortInUse(cfg.LocalPort))
         {
-            SetResult($"Result: ERROR - Local Port {cfg.LocalPort} is already in use!", Brushes.Red);
+            var holder = Configs.FirstOrDefault(c => !ReferenceEquals(c, cfg)
+                                                     && c.LocalPort == cfg.LocalPort
+                                                     && _ssh.IsForwardActive(c));
+            SetResult(holder != null
+                ? $"Result: ERROR - Local Port {cfg.LocalPort} is already used by '{holder.Name}' ({holder.RemoteIp})!"
+                : $"Result: ERROR - Local Port {cfg.LocalPort} is already in use by another program!", Brushes.Red);
             return;
         }
 

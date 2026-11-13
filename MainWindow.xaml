@@ -4,7 +4,7 @@
         xmlns:vm="clr-namespace:BIOSForwardManager.ViewModels"
         xmlns:models="clr-namespace:BIOSForwardManager.Models"
         xmlns:conv="clr-namespace:BIOSForwardManager.Converters"
-        Title="BIOS Lab Manager (WPF TreeListView)"
+        Title="BIOS Lab Manager (Connect to Jumper Server)"
         Height="640" Width="940"
         MinHeight="400" MinWidth="680"
         WindowStartupLocation="CenterScreen"

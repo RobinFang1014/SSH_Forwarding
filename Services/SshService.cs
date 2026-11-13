@@ -13,7 +13,9 @@ namespace BIOSForwardManager.Services;
 public class SshService : IDisposable
 {
     private SshClient? _client;
-    private readonly Dictionary<int, ForwardedPortLocal> _forwards = new();
+    // 以 ForwardConfig 物件（reference）為 key，而非 LocalPort：
+    // 否則 config.txt 中兩筆相同 LocalPort 的設定會共用狀態，Enable/Disable 互相連動。
+    private readonly Dictionary<ForwardConfig, ForwardedPortLocal> _forwards = new();
     private readonly object _lock = new();
 
     public bool IsConnected => _client?.IsConnected == true;
@@ -51,7 +53,9 @@ public class SshService : IDisposable
 
         try
         {
-            // 斷線後重連：清理殘留的舊 client、重置「已觸發」旗標
+            // 斷線後重連：清理殘留的舊轉發（否則舊 listener 仍佔著本機 port，StartAuto 會跳過）、
+            // 舊 client，並重置「已觸發」旗標
+            lock (_lock) StopAllForwards();
             if (_client != null) { try { _client.Dispose(); } catch { } _client = null; }
             Interlocked.Exchange(ref _disconnectFired, 0);
 
@@ -104,14 +108,27 @@ public class SshService : IDisposable
         {
             lock (_lock)
             {
-                if (_forwards.TryGetValue(cfg.LocalPort, out var existing) && existing.IsStarted)
-                    return (true, "Already active");
+                if (_forwards.TryGetValue(cfg, out var existing))
+                {
+                    if (existing.IsStarted) return (true, "Already active");
+                    try { _client.RemoveForwardedPort(existing); } catch { }
+                    _forwards.Remove(cfg);
+                }
 
                 var forward = new ForwardedPortLocal(
                     "127.0.0.1", (uint)cfg.LocalPort, cfg.RemoteIp, (uint)cfg.RemotePort);
                 _client.AddForwardedPort(forward);
-                forward.Start();
-                _forwards[cfg.LocalPort] = forward;
+                try
+                {
+                    forward.Start();
+                }
+                catch
+                {
+                    // Start 失敗（例如 port 被佔用）→ 移除，避免殘留在 client 上
+                    try { _client.RemoveForwardedPort(forward); } catch { }
+                    throw;
+                }
+                _forwards[cfg] = forward;
                 RaiseLog($"Enabled {cfg.Name}: 127.0.0.1:{cfg.LocalPort} -> {cfg.RemoteIp}:{cfg.RemotePort}");
                 return (true, "");
             }
@@ -132,11 +149,11 @@ public class SshService : IDisposable
         {
             lock (_lock)
             {
-                if (_forwards.TryGetValue(cfg.LocalPort, out var forward))
+                if (_forwards.TryGetValue(cfg, out var forward))
                 {
                     forward.Stop();
                     _client.RemoveForwardedPort(forward);
-                    _forwards.Remove(cfg.LocalPort);
+                    _forwards.Remove(cfg);
                     RaiseLog($"Disabled {cfg.Name}: 127.0.0.1:{cfg.LocalPort}");
                     return (true, "");
                 }
@@ -168,8 +185,7 @@ public class SshService : IDisposable
         {
             // 手動斷線：先標記「已觸發」，避免 ErrorOccurred 誤觸發 Disconnected 事件
             Interlocked.Exchange(ref _disconnectFired, 1);
-            foreach (var f in _forwards.Values) { try { f.Stop(); } catch { } }
-            _forwards.Clear();
+            StopAllForwards();
             if (_client != null)
             {
                 try { _client.ErrorOccurred -= OnClientErrorOccurred; } catch { }
@@ -179,6 +195,17 @@ public class SshService : IDisposable
             }
             RaiseLog("Disconnected.");
         }
+    }
+
+    /// <summary>停止並移除所有轉發（呼叫端需持有 _lock）。</summary>
+    private void StopAllForwards()
+    {
+        foreach (var f in _forwards.Values)
+        {
+            try { f.Stop(); } catch { }
+            try { _client?.RemoveForwardedPort(f); } catch { }
+        }
+        _forwards.Clear();
     }
 
     public void Cleanup() => Disconnect();
@@ -226,9 +253,11 @@ public class SshService : IDisposable
     // ===== Compat (old API) =====
     public bool IsMasterReady() => IsConnected;
     public void StopMaster() => Disconnect();
-    public bool IsForwardActive(int port)
+    /// <summary>此設定的轉發是否啟用中（未連線時一律 false，避免斷線後殘留的 forward 讓 UI 顯示 ACTIVE）。</summary>
+    public bool IsForwardActive(ForwardConfig cfg)
     {
-        lock (_lock) return _forwards.TryGetValue(port, out var f) && f.IsStarted;
+        if (!IsConnected) return false;
+        lock (_lock) return _forwards.TryGetValue(cfg, out var f) && f.IsStarted;
     }
 
     public void Dispose() => Disconnect();

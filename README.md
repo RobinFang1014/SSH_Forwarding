@@ -67,6 +67,22 @@ dotnet build
 dotnet publish -c Release
 ```
 
+### 發佈免安裝 .NET 的可攜版（單一 EXE）
+
+適用於目標電腦沒有 .NET、也沒有 Admin 權限安裝的情況。.NET Runtime 會一起打包進 exe（約 75 MB）。
+
+```bash
+dotnet publish -p:PublishProfile=Portable-win-x64
+```
+
+或在 Visual Studio：專案右鍵 →「發佈」→ 選 `Portable-win-x64` →「發佈」。
+
+輸出：`bin/Publish/Portable-win-x64/BIOSForwardManager.exe`，連同 `config.txt` 放在同一個資料夾即可執行。
+
+> 首次執行時，WPF 的原生 DLL 會解壓到 `%TEMP%\.net\`。若公司政策禁止從 TEMP 執行 DLL，
+> 可把 `Properties/PublishProfiles/Portable-win-x64.pubxml` 中的 `IncludeNativeLibrariesForSelfExtract` 改為 `false`，
+> 改為 exe 加上數個原生 DLL 一起放在同一資料夾。
+
 ### 運行應用
 
 ```bash
